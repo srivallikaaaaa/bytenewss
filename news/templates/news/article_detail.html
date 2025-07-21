@@ -1,0 +1,20 @@
+{# news/templates/news/article_detail.html #}
+{% extends 'website/base.html' %}
+
+{% block content %}
+  <div class="container mt-4">
+    <div class="card shadow-lg">
+      <div class="card-body">
+        <h2 class="card-title">{{ article.title }}</h2>
+        <p class="card-text mt-3">{{ article.content }}</p>
+      </div>
+      <div class="card-footer text-muted text-end">
+        Published on {{ article.published_at|date:"F j, Y, g:i a" }}
+      </div>
+    </div>
+
+    <div class="mt-4">
+      <a href="{% url 'home' %}" class="btn btn-secondary">← Back to All Articles</a>
+    </div>
+  </div>
+{% endblock %}
