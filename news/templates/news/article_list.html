@@ -3,23 +3,37 @@
 <div class="container mt-4">
 
   <h2 class="mb-4 text-center">📰 Latest Articles</h2>
-  {% if user.is_authenticated %}
-  <div class="recommendations mt-5">
-    <h3>Recommended for you</h3>
+  <!-- Recommendations Section -->
     {% if recommendations %}
-      <ul>
+    <hr>
+    <h3>Recommended For You</h3>
+    <div class="row mt-3">
         {% for article in recommendations %}
-          <li>
-            <a href="{% url 'article_detail' article.pk %}">{{ article.title }}</a>
-            <small>({{ article.published_date|date:"F j, Y" }})</small>
-          </li>
+        <div class="col-md-6 col-lg-4 mb-4">
+            <div class="card border-info h-100">
+                <div class="card-body">
+                    <h5 class="card-title">{{ article.title }}</h5>
+                    <h6 class="card-subtitle mb-2 text-muted">
+                        By {{ article.author }} on {{ article.publication_date|date:"F d, Y" }}
+                    </h6>
+                    <h6 class="card-subtitle mb-2 text-muted">
+  By {{ article.author }} from {{ article.source }} on {{ article.publication_date|date:"F d, Y" }}
+</h6>
+
+                    {% if article.category %}
+                        <span class="badge bg-info">{{ article.category.name }}</span>
+                    {% endif %}
+                    <p class="card-text mt-2">{{ article.content|truncatechars:150 }}</p>
+                    <a href="{% url 'home' %}" class="btn btn-sm btn-info">Read More</a>
+                </div>
+            </div>
+        </div>
         {% endfor %}
-      </ul>
-    {% else %}
-      <p class="text-muted">No recommendations based on your current preferences.</p>
+    </div>
     {% endif %}
-  </div>
-{% endif %}
+
+</div>
+
 
 
   
