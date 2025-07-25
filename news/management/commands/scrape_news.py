@@ -2,8 +2,11 @@
 
 # news/management/commands/scrape_news.py
 from django.core.management.base import BaseCommand
-from news.utils import fetch_news_from_rss
+from news.utils import fetch_news_from_rss, generate_summary
 from news.models import Article, Category
+import nltk
+nltk.download('punkt')
+
 
 class Command(BaseCommand):
     help = 'Scrapes news articles from various RSS feeds and saves them to the database.'
@@ -18,7 +21,7 @@ class Command(BaseCommand):
         }
 
         articles_added = 0
-        default_category, _ = Category.objects.get_or_create(name='General')
+        general_category, _ = Category.objects.get_or_create(name='General')
 
         for source_name, url in sources.items():
             self.stdout.write(f"Fetching from {source_name}...")
@@ -26,15 +29,24 @@ class Command(BaseCommand):
 
             for article_data in articles_data:
                 if not Article.objects.filter(link=article_data['link']).exists():
-                    Article.objects.create(
+                    # ✅ Generate summary
+                    article_summary = generate_summary(article_data['content'],article_data['title'])
+
+                    # ✅ Create the article and store it in a variable
+                    article = Article.objects.create(
                         title=article_data['title'],
                         content=article_data['content'],
                         link=article_data['link'],
                         publication_date=article_data['publication_date'],
-                        author=article_data.get('author', 'Unknown'),  # ✅ if you ever add author
-                        source=article_data['source'],  # ✅ Correct source field
-                        category=default_category
+                        author=article_data.get('author', 'Unknown'),
+                        source=article_data['source'],
+                        summary=article_summary
                     )
+
+                    # ✅ Assign category (if it's a ManyToManyField)
+                    article.categories.add(general_category)
+
+                    # ✅ Increment counter
                     articles_added += 1
 
         self.stdout.write(self.style.SUCCESS(f"Finished scraping. Added {articles_added} new articles."))

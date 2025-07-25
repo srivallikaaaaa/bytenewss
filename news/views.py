@@ -8,7 +8,17 @@ from .models import Article, ReadingHistory  # Make sure ReadingHistory is impor
 
 from django.contrib import messages
 from .models import Article
-from news.models import UserPreference  # ensure this is imported
+from news.models import UserPreference 
+
+from django.contrib.auth.decorators import login_required
+from .utils import generate_summary
+
+
+from django.views.decorators.http import require_POST
+from django.http import JsonResponse
+from news.utils import summarize_text
+
+ # ensure this is imported
 
 
 # news/views.py
@@ -118,3 +128,40 @@ def reading_history(request):
         user=request.user
     ).select_related('article').order_by('-read_at')
     return render(request, 'news/reading_history.html', {'history': history})
+
+@login_required
+def generate_summary_view(request, pk):
+    article = get_object_or_404(Article, pk=pk)
+    article.summary = generate_summary(article.content, article.title)
+    article.save()
+    messages.success(request, "Summary re-generated successfully!")
+    return redirect('news:detail', pk=pk)
+
+@login_required
+@require_POST
+def submit_summary_feedback(request, pk):
+    article = get_object_or_404(Article, pk=pk)
+    is_helpful = request.POST.get('is_helpful')
+    if is_helpful is not None:
+        is_helpful_bool = (is_helpful.lower() == 'true')
+        SummaryFeedback.objects.update_or_create(
+            user=request.user,
+            article=article,
+            defaults={'is_helpful': is_helpful_bool}
+        )
+        messages.success(request, 'Thank you for your feedback!')
+    else:
+        messages.error(request, 'Invalid feedback provided.')
+    return redirect('news:detail', pk=pk)
+
+
+def summarize_example(request):
+    text = """
+    India won the match against Australia in a thrilling finish. 
+    The crowd was ecstatic as Virat Kohli hit the winning runs. 
+    Earlier, Australia had set a target of 250 runs. 
+    India chased the total in the final over. 
+    The match was held in Mumbai.
+    """
+    summary = summarize_text(text, num_sentences=2)
+    return JsonResponse({'summary': summary})

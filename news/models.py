@@ -21,6 +21,7 @@ class Article(models.Model):
     source_url = models.URLField()
     category = models.ForeignKey(Category, on_delete=models.CASCADE)
     published_date = models.DateTimeField(default=timezone.now)
+    summary = models.TextField(blank=True, null=True)
     
     # ✅ Only this link field should exist
     link = models.URLField(max_length=500, unique=True, null=True, blank=True)
@@ -57,3 +58,17 @@ class ReadingHistory(models.Model):
 
     class Meta:
         unique_together = ('user', 'article')
+
+
+class SummaryFeedback(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    article = models.ForeignKey(Article, on_delete=models.CASCADE)
+    is_helpful = models.BooleanField()
+    feedback_date = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('user', 'article')
+        verbose_name_plural = "Summary Feedback"
+
+    def __str__(self):
+        return f"{self.user.username} - {self.article.title[:30]} - Helpful: {self.is_helpful}"

@@ -24,6 +24,8 @@ from news.views import landing_page
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('users/', include('users.urls')),
+    path('news/', include('news.urls')),
+    path('articles/', include(('news.urls', 'news'), namespace='news')),
 
     # ✅ Home page goes to landing page
     path('', landing_page, name='landing'),
