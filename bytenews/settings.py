@@ -143,4 +143,8 @@ LOGOUT_REDIRECT_URL = '/login/'
 # settings.py
 LOGOUT_REDIRECT_URL = '/logout/'  # or any route where you show the logout page
 
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+
 

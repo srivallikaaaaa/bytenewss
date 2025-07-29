@@ -8,6 +8,7 @@ from django.contrib import admin
 # Register your models here.
 from django.contrib import admin
 from .models import Category, Article, UserPreference, ReadingHistory
+from .models import SummaryFeedback
 
 
 @admin.register(Category)
@@ -32,3 +33,10 @@ class ReadingHistoryAdmin(admin.ModelAdmin):
     list_display = ['user', 'article', 'read_at']
     list_filter = ['read_at']
     readonly_fields = ['read_at']
+
+
+@admin.register(SummaryFeedback)
+class SummaryFeedbackAdmin(admin.ModelAdmin):
+    list_display = ['user', 'article', 'is_helpful', 'feedback_date']
+    list_filter = ['is_helpful', 'feedback_date']
+    search_fields = ['user__username', 'article__title']

@@ -3,47 +3,14 @@
 <div class="container mt-4">
 
   <h2 class="mb-4 text-center">📰 Latest Articles</h2>
-  <!-- Recommendations Section -->
-    {% if recommendations %}
-    <hr>
-    <h3>Recommended For You</h3>
-    <div class="row mt-3">
-        {% for article in recommendations %}
-        <div class="col-md-6 col-lg-4 mb-4">
-            <div class="card border-info h-100">
-                <div class="card-body">
-                    <h5 class="card-title">{{ article.title }}</h5>
-                    <h6 class="card-subtitle mb-2 text-muted">
-                        By {{ article.author }} on {{ article.publication_date|date:"F d, Y" }}
-                    </h6>
-                    <h6 class="card-subtitle mb-2 text-muted">
-  By {{ article.author }} from {{ article.source }} on {{ article.publication_date|date:"F d, Y" }}
-</h6>
 
-                    {% if article.category %}
-                        <span class="badge bg-info">{{ article.category.name }}</span>
-                    {% endif %}
-                    <p class="card-text mt-2">{{ article.content|truncatechars:150 }}</p>
-                    <a href="{% url 'home' %}" class="btn btn-sm btn-info">Read More</a>
-                </div>
-            </div>
-        </div>
-        {% endfor %}
-    </div>
-    {% endif %}
-
-</div>
-
-
-
-  
   <!-- ✅ Filter Section: Search Bar + Categories -->
   <div class="mb-4">
     <div class="row justify-content-center">
 
       <!-- 🔍 Search Form -->
       <div class="col-md-8">
-  <form method="get" action="{% url 'home' %}" class="d-flex align-items-stretch mb-3">
+  <form method="get" action="{% url 'news:home' %}" class="d-flex align-items-stretch mb-3">
     {% if current_category %}
       <input type="hidden" name="category" value="{{ current_category }}">
     {% endif %}
@@ -56,11 +23,11 @@
       <!-- 📂 Category Buttons -->
       <div class="col-md-12 text-center">
         <div class="btn-group flex-wrap" role="group">
-          <a href="{% url 'home' %}" class="btn {% if not current_category %}btn-primary{% else %}btn-outline-primary{% endif %} mb-2 me-2">
+          <a href="{% url 'news:home' %}" class="btn {% if not current_category %}btn-primary{% else %}btn-outline-primary{% endif %} mb-2 me-2">
             All Articles
           </a>
           {% for category in categories %}
-            <a href="{% url 'home' %}?category={{ category.name }}{% if query %}&q={{ query }}{% endif %}"
+            <a href="{% url 'news:home' %}?category={{ category.name }}{% if query %}&q={{ query }}{% endif %}"
                class="btn {% if current_category == category.name %}btn-primary{% else %}btn-outline-primary{% endif %} mb-2 me-2">
               {{ category.name }} ({{ category.article_count }})
             </a>
@@ -77,8 +44,13 @@
         <div class="card h-100 shadow-sm">
           <div class="card-body">
             <h5 class="card-title">{{ article.title }}</h5>
-            <p class="card-text">{{ article.summary|default:"No summary available." }}</p>
-            <a href="{% url 'article_detail' article.pk %}" class="btn btn-primary">Read More</a>
+            <!-- news/templates/news/article_list.html -->
+<h6 class="card-subtitle mb-2 text-muted">
+  By {{ article.author }} from {{ article.source }} on {{ article.publication_date|date:"F d, Y" }}
+</h6>
+
+            <p class="card-text">{{ article.summary|default:"" }}</p>
+            <a href="{% url 'news:article_detail' article.pk %}" class="btn btn-primary">Read More</a>
           </div>
         </div>
       </div>
@@ -88,6 +60,33 @@
       </div>
     {% endfor %}
   </div>
+
+    <!-- Recommendations Section -->
+    {% if recommendations %}
+    <hr>
+    <h3>Recommended For You</h3>
+    <div class="row mt-3">
+        {% for article in recommendations %}
+        <div class="col-md-6 col-lg-4 mb-4">
+            <div class="card border-info h-100">
+                <div class="card-body">
+                    <h5 class="card-title">{{ article.title }}</h5>
+                    <h6 class="card-subtitle mb-2 text-muted">
+                        By {{ article.author }} on {{ article.publication_date|date:"F d, Y" }}
+                    </h6>
+                    {% if article.category %}
+                        <span class="badge bg-info">{{ article.category.name }}</span>
+                    {% endif %}
+                    <p class="card-text mt-2">{{ article.content|truncatechars:150 }}</p>
+                    <a href="{% url 'news:home' %}" class="btn btn-sm btn-info">Read More</a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+</div>
 
   <!-- 📄 Pagination -->
   {% if is_paginated %}
