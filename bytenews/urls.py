@@ -22,12 +22,28 @@ from django.views.generic import TemplateView
 from news.views import landing_page
 from django.conf import settings
 from django.conf.urls.static import static
+from rest_framework import routers
+from news.views import ArticleViewSet,UserPreferenceViewSet
+from news.views import GenerateAudioAPIView 
+
+router = routers.DefaultRouter()
+router.register(r'articles', ArticleViewSet)
+router.register(r'preferences', UserPreferenceViewSet, basename='userpreference')
 
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('users/', include('users.urls')),
     path('', include('news.urls')),
+
+    path('api/', include(router.urls)),
+    path('api/articles/<int:pk>/generate_audio/', GenerateAudioAPIView.as_view(), name='api_generate_audio'),
+
+
+
+    path('news/', include('news.urls')),
+    path('accounts/', include('allauth.urls')),
+    path('api/', include(router.urls)),
   
 
     

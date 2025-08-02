@@ -1,15 +1,30 @@
+import logging
 from django.views.generic import ListView, DetailView, TemplateView
 from django.shortcuts import render, redirect, get_object_or_404
 from django.db.models import Q, Count
-from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_POST
 from django.http import JsonResponse
+from django.conf import settings
+from django.views.decorators.csrf import csrf_exempt
 
-import logging
+from rest_framework import viewsets, permissions
+from .serializers import ArticleSerializer
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
+from django.shortcuts import get_object_or_404
+
+
+from .models import UserPreference
+from .serializers import UserPreferenceSerializer
+from rest_framework.permissions import IsAuthenticated
+
 
 from .models import Article, Category, UserPreference, ReadingHistory, SummaryFeedback
-from .utils import generate_summary
+from .utils import generate_summary, generate_audio_summary, text_to_speech, generate_audio_from_text
 
 logger = logging.getLogger(__name__)
 
@@ -167,7 +182,7 @@ def submit_summary_feedback(request, pk):
 
     messages.error(request, 'Invalid feedback provided.')
     return redirect('article_detail', pk=pk)
-from .utils import text_to_speech
+
 
 def create_audio_for_article(article):
     if article.content:
@@ -175,3 +190,71 @@ def create_audio_for_article(article):
         relative_audio_path = text_to_speech(article.content, filename)
         article.audio_file = relative_audio_path
         article.save()
+
+
+@login_required
+@require_POST
+@csrf_exempt  # Optional: remove if your JS handles CSRF properly
+def generate_audio_ajax(request, pk):
+    if request.method == "POST":
+        try:
+            article = Article.objects.get(pk=pk)
+            
+            if not article.summary:
+                return JsonResponse({'status': 'error', 'message': 'No summary available to convert to audio.'})
+            
+            audio_url = generate_audio_from_text(article)
+            return JsonResponse({'status': 'success', 'audio_url': audio_url})
+        
+        except Article.DoesNotExist:
+            return JsonResponse({'status': 'error', 'message': 'Article not found.'})
+        
+        except Exception as e:
+            logger.error(f"Error generating audio for article {pk}: {e}", exc_info=True)
+            return JsonResponse({'status': 'error', 'message': 'Server error during audio generation.'})
+    
+    else:
+        return JsonResponse({'status': 'error', 'message': 'Invalid request method.'})
+    
+class ArticleViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = Article.objects.filter(approved=True).order_by('-publication_date')
+    serializer_class = ArticleSerializer
+
+
+
+class UserPreferenceViewSet(viewsets.ModelViewSet):
+    queryset = UserPreference.objects.all()
+    serializer_class = UserPreferenceSerializer
+    permission_classes = [IsAuthenticated]  # Only logged-in users can access
+
+    def get_queryset(self):
+        # Only return the logged-in user's preferences
+        return UserPreference.objects.filter(user=self.request.user)
+
+    def perform_create(self, serializer):
+        # Automatically associate preference with current user
+        serializer.save(user=self.request.user)
+
+class GenerateAudioAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk, format=None):
+        article = get_object_or_404(Article, pk=pk)
+
+        if not article.summary:
+            article.summary = generate_summary(article.content, article.title)
+            article.save()
+
+        if not article.summary:
+            return Response({'detail': 'Could not generate summary for article.'},
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        audio_url = generate_audio_summary(article.summary, article.id)
+
+        if audio_url:
+            article.audio_file.name = audio_url.replace(settings.MEDIA_URL, '', 1)
+            article.save()
+            return Response({'audio_url': audio_url}, status=status.HTTP_200_OK)
+        else:
+            return Response({'detail': 'Failed to generate audio summary.'},
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR)

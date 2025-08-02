@@ -12,12 +12,14 @@ from gtts import gTTS
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize, sent_tokenize
 from django.conf import settings
+from datetime import datetime
 
-# Download required NLTK data
+# Download required NLTK data (should be done once, but kept here for dev convenience)
 nltk.download('punkt')
 nltk.download('stopwords')
 
 logger = logging.getLogger(__name__)
+
 
 def generate_summary(text, article_title="", num_sentences=3):
     """
@@ -93,12 +95,45 @@ def generate_audio_summary(text, article_id):
     except Exception as e:
         logger.error(f"Error generating audio for article {article_id}: {e}")
         return None
-from gtts import gTTS
-import os
+
 
 def text_to_speech(text, filename):
+    """
+    Converts given text to speech, saves under media/audio/ directory.
+    Returns the relative path like 'audio/filename.mp3'.
+    """
     tts = gTTS(text)
-    audio_path = os.path.join("media/audio", filename)
+    audio_path = os.path.join(settings.MEDIA_ROOT, "audio", filename)
     os.makedirs(os.path.dirname(audio_path), exist_ok=True)
     tts.save(audio_path)
-    return f"audio/{filename}" 
+    return posixpath.join('audio', filename)
+
+
+
+def generate_audio_from_text(article):
+    summary = article.summary.strip()
+    if not summary:
+        raise ValueError("Empty summary cannot be converted to audio.")
+
+    # Use timestamp to make filename unique
+    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+    audio_filename = f"summary_{article.pk}_{timestamp}.mp3"
+
+    audio_dir = os.path.join(settings.MEDIA_ROOT, 'news_audio')
+    os.makedirs(audio_dir, exist_ok=True)
+    audio_path = os.path.join(audio_dir, audio_filename)
+
+    tts = gTTS(text=summary, lang='en')
+    tts.save(audio_path)
+
+    # Remove old audio file if it exists
+    if article.audio_file:
+        old_audio_path = os.path.join(settings.MEDIA_ROOT, article.audio_file.name)
+        if os.path.exists(old_audio_path):
+            os.remove(old_audio_path)
+
+    article.audio_file.name = f'news_audio/{audio_filename}'
+    article.save()
+
+    logger.info(f"Generated audio for article {article.pk} at {audio_path}")
+    return f"{settings.MEDIA_URL}news_audio/{audio_filename}"

@@ -47,6 +47,7 @@ class Article(models.Model):
 class UserPreference(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     preferred_categories = models.ManyToManyField(Category, blank=True)
+    categories = models.ManyToManyField(Category, related_name='category_preferences')
 
     def __str__(self):
         return f"{self.user.username}'s preferences"

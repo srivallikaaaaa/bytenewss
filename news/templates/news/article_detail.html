@@ -23,9 +23,9 @@
           <div class="mt-3">
             <h5>Audio Summary:</h5>
             <audio controls preload="auto" style="width: 100%;">
-  <source src="{{ MEDIA_URL }}{{ article.audio_file }}" type="audio/mpeg">
-  Your browser does not support the audio element.
-</audio>
+             <source src="{{ MEDIA_URL }}{{ article.audio_file }}" type="audio/mpeg">
+             Your browser does not support the audio element.
+            </audio>
 
 
             <p class="text-muted small mt-1">File: {{ article.audio_file.name }}</p>
