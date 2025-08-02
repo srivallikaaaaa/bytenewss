@@ -3,8 +3,8 @@
 {% load static %}
 {% get_media_prefix as MEDIA_URL %}
 
-
 {% block content %}
+<input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
 
 <div class="container mt-4">
   <div class="card shadow-lg">
@@ -19,20 +19,30 @@
           <strong>Summary:</strong> {{ article.summary|linebreaksbr }}
         </div>
 
-        {% if article.audio_file %}
-          <div class="mt-3">
-            <h5>Audio Summary:</h5>
-            <audio controls preload="auto" style="width: 100%;">
-             <source src="{{ MEDIA_URL }}{{ article.audio_file }}" type="audio/mpeg">
-             Your browser does not support the audio element.
+        {# --- Audio Summary Section --- #}
+        <div class="mt-3" id="audioPlayerContainer">
+          <h5>Audio Summary:</h5>
+          {% if article.audio_file %}
+            <audio id="audioPlayer" controls preload="auto" style="width: 100%;">
+              <source src="{{ MEDIA_URL }}{{ article.audio_file }}" type="audio/mpeg">
+              Your browser does not support the audio element.
             </audio>
-
-
             <p class="text-muted small mt-1">File: {{ article.audio_file.name }}</p>
-          </div>
-        {% else %}
-          <p class="text-muted"><em>No audio summary available.</em></p>
-        {% endif %}
+          {% else %}
+            <p id="audioStatus" class="text-muted">Audio summary not yet generated.</p>
+            <div id="loadingSpinner" class="spinner-border text-primary" role="status" style="display: none;">
+              <span class="visually-hidden">Loading...</span>
+            </div>
+            {% if user.is_authenticated %}
+              <button id="generateAudioBtn"
+                      class="btn btn-primary btn-sm mt-2"
+                      data-article-id="{{ article.pk }}">
+                Generate Audio Summary
+              </button>
+            {% endif %}
+          {% endif %}
+        </div>
+        {# --- End Audio Summary Section --- #}
 
         <div class="mt-2 text-muted">
           <p>👍 Helpful: {{ helpful_count }} | 👎 Not Helpful: {{ not_helpful_count }}</p>
@@ -107,4 +117,77 @@
     <a href="{% url 'news:home' %}" class="btn btn-secondary">← Back to All Articles</a>
   </div>
 </div>
+
+{# --- JavaScript for Audio Generation --- #}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const generateAudioBtn = document.getElementById('generateAudioBtn');
+  const audioPlayer = document.getElementById('audioPlayer');
+  const audioPlayerContainer = document.getElementById('audioPlayerContainer');
+  const audioStatus = document.getElementById('audioStatus');
+  const csrfToken = document.querySelector('input[name="csrfmiddlewaretoken"]').value;
+  const spinner = document.getElementById('loadingSpinner');
+
+  if (generateAudioBtn) {
+    generateAudioBtn.addEventListener('click', function() {
+      const articleId = this.dataset.articleId;
+
+      // Show feedback
+      audioStatus.textContent = 'Generating audio... Please wait.';
+      generateAudioBtn.disabled = true;
+      spinner.style.display = 'block';
+
+      fetch(`/news/article/${articleId}/generate_audio_ajax/`, {
+        method: 'POST',
+        headers: {
+          'X-CSRFToken': csrfToken,
+          'Content-Type': 'application/json'
+        },
+      })
+      .then(response => {
+        spinner.style.display = 'none';
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+        return response.json();
+      })
+      .then(data => {
+        if (data.status === 'success') {
+          audioStatus.textContent = 'Audio summary ready!';
+          if (!audioPlayer) {
+            const newAudio = document.createElement('audio');
+            newAudio.id = 'audioPlayer';
+            newAudio.controls = true;
+            newAudio.style.width = '100%';
+
+            const source = document.createElement('source');
+            source.src = data.audio_url;
+            source.type = 'audio/mpeg';
+
+            newAudio.appendChild(source);
+            audioPlayerContainer.innerHTML = '';
+            audioPlayerContainer.appendChild(newAudio);
+            newAudio.load();
+            newAudio.play();
+          } else {
+            audioPlayer.querySelector('source').src = data.audio_url;
+            audioPlayer.load();
+            audioPlayer.play();
+          }
+          generateAudioBtn.style.display = 'none';
+        } else {
+          audioStatus.textContent = `Error: ${data.message}`;
+          generateAudioBtn.disabled = false;
+        }
+      })
+      .catch(error => {
+        spinner.style.display = 'none';
+        audioStatus.textContent = 'Failed to generate audio. Please try again.';
+        generateAudioBtn.disabled = false;
+        console.error('Fetch error:', error);
+      });
+    });
+  }
+});
+</script>
 {% endblock %}

@@ -23,6 +23,7 @@ from .serializers import UserPreferenceSerializer
 from rest_framework.permissions import IsAuthenticated
 
 
+
 from .models import Article, Category, UserPreference, ReadingHistory, SummaryFeedback
 from .utils import generate_summary, generate_audio_summary, text_to_speech, generate_audio_from_text
 
@@ -120,6 +121,19 @@ class ArticleDetailView(DetailView):
             context['user_feedback'] = None
 
         return context
+    
+
+    def article_detail(request, pk):
+        article = get_object_or_404(Article, pk=pk)
+
+        helpful_count = article.summaryfeedback_set.filter(is_helpful=True).count()
+        not_helpful_count = article.summaryfeedback_set.filter(is_helpful=False).count()
+
+        return render(request, 'news/article_detail.html', {
+            'article': article,
+            'helpful_count': helpful_count,
+            'not_helpful_count': not_helpful_count,
+        })
 
 
 class HomePageView(TemplateView):
@@ -155,7 +169,7 @@ def generate_summary_view(request, pk):
 
         messages.success(request, f'Summary successfully generated with {num_sentences} sentence{"s" if num_sentences > 1 else ""}.')
 
-    return redirect('article_detail', pk=pk)
+    return redirect('news:article_detail', pk=article.pk)
 
 
 @login_required
@@ -181,7 +195,7 @@ def submit_summary_feedback(request, pk):
             return redirect('article_detail', pk=pk)
 
     messages.error(request, 'Invalid feedback provided.')
-    return redirect('article_detail', pk=pk)
+    return redirect('news:article_detail', pk=article.pk)
 
 
 def create_audio_for_article(article):
@@ -194,27 +208,26 @@ def create_audio_for_article(article):
 
 @login_required
 @require_POST
-@csrf_exempt  # Optional: remove if your JS handles CSRF properly
 def generate_audio_ajax(request, pk):
-    if request.method == "POST":
-        try:
-            article = Article.objects.get(pk=pk)
-            
-            if not article.summary:
-                return JsonResponse({'status': 'error', 'message': 'No summary available to convert to audio.'})
-            
-            audio_url = generate_audio_from_text(article)
-            return JsonResponse({'status': 'success', 'audio_url': audio_url})
-        
-        except Article.DoesNotExist:
-            return JsonResponse({'status': 'error', 'message': 'Article not found.'})
-        
-        except Exception as e:
-            logger.error(f"Error generating audio for article {pk}: {e}", exc_info=True)
-            return JsonResponse({'status': 'error', 'message': 'Server error during audio generation.'})
-    
+    article = get_object_or_404(Article, pk=pk)
+
+    if not article.summary:
+        article.summary = generate_summary(article.content, article.title)
+        article.save()
+
+    if not article.summary:
+        return JsonResponse({'status': 'error', 'message': 'Could not generate summary.'}, status=500)
+
+    audio_url = generate_audio_summary(article.summary, article.id)
+
+    if audio_url:
+        article.audio_file.name = audio_url.replace(settings.MEDIA_URL, '', 1)
+        article.save()
+        messages.success(request, "Audio summary generated!")
+        return JsonResponse({'status': 'success', 'audio_url': audio_url})
     else:
-        return JsonResponse({'status': 'error', 'message': 'Invalid request method.'})
+        messages.error(request, "Failed to generate audio summary.")
+        return JsonResponse({'status': 'error', 'message': 'Failed to generate audio'}, status=500)
     
 class ArticleViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Article.objects.filter(approved=True).order_by('-publication_date')
